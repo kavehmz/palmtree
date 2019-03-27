@@ -1,12 +1,9 @@
 package palmtree
 
 import (
+	"io"
 	"sync"
 )
-
-type closer = interface {
-	Close() error
-}
 
 // PalmTree is a special pool for keeping closable connections
 type PalmTree struct {
@@ -14,21 +11,21 @@ type PalmTree struct {
 	// If buffer gets full new connections get closed and discarded
 	Buffer uint64
 	// A function which will generate new connections if needed
-	New func() closer
+	New func() io.Closer
 
-	conns chan *closer
-	sync.Mutex
+	conns chan *io.Closer
+	lock  sync.Mutex
 }
 
 // Get will return a new connection
-func (s *PalmTree) Get() closer {
-	s.Lock()
+func (s *PalmTree) Get() io.Closer {
+	s.lock.Lock()
 	if s.conns == nil {
-		s.conns = make(chan *closer, s.Buffer)
+		s.conns = make(chan *io.Closer, s.Buffer)
 	}
-	s.Unlock()
+	s.lock.Unlock()
 
-	var con *closer
+	var con *io.Closer
 	select {
 	case con = <-s.conns:
 	default:
@@ -43,7 +40,7 @@ func (s *PalmTree) Get() closer {
 
 // Put returns the connection to the pool. If pool is full it will close the connection and discard it.
 // Return error is set only if Put tries to close a connection and faces any error.
-func (s *PalmTree) Put(con closer) error {
+func (s *PalmTree) Put(con io.Closer) error {
 	select {
 	case s.conns <- &con:
 	default:

@@ -2,6 +2,7 @@ package palmtree_test
 
 import (
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/kavehmz/palmtree"
@@ -16,7 +17,7 @@ func (s *mock) Close() error {
 func TestPalmTree_Get(t *testing.T) {
 	count := 0
 	p := palmtree.PalmTree{
-		New: func() interface{ Close() error } { // nolint: unused
+		New: func() io.Closer {
 			count++
 			return &mock{}
 		},
